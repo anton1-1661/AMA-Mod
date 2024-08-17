@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import datetime
+import pytz
 
 class Moderation(commands.Cog):
     def __init__(self, bot):
@@ -39,15 +40,24 @@ class Moderation(commands.Cog):
 
         # Initialize the member's data if it doesn't exist
         if member_id not in self.data[guild_id]:
-            self.data[guild_id][member_id] = {"Warns": 0}
+            self.data[guild_id][member_id] = []
 
-        # Increment the warn count
-        self.data[guild_id][member_id]["Warns"] += 1
+        # Get the current time in Berlin timezone
+        berlin_tz = pytz.timezone('Europe/Berlin')
+        berlin_time = datetime.datetime.now(berlin_tz)
+        timestamp = berlin_time.strftime("%d. %B %Y, %H:%M:%S")
+
+        # Add a new warning with a timestamp
+        self.data[guild_id][member_id].append({
+            "reason": reason,
+            "moderator": str(ctx.author),
+            "timestamp": timestamp
+        })
 
         # Save the updated data
         self.save_data()
 
-        await ctx.send(f"{member.mention} wurde **gewarnt** von {ctx.author.mention} **Grund:** {reason}")
+        await ctx.send(f"{member.mention} wurde **gewarnt** von {ctx.author.mention} \n\n**Grund:** {reason}")
 
     @commands.command()
     @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
@@ -56,10 +66,10 @@ class Moderation(commands.Cog):
         member_id = str(member.id)
 
         if guild_id in self.data and member_id in self.data[guild_id]:
-            if self.data[guild_id][member_id]["Warns"] > 0:
-                self.data[guild_id][member_id]["Warns"] -= 1
+            if len(self.data[guild_id][member_id]) > 0:
+                self.data[guild_id][member_id].pop()
                 self.save_data()
-                await ctx.send(f"**1** Verwarnung wurde von {member.mention} von {ctx.author.mention} **entfernt**")
+                await ctx.send(f"**1** Verwarnung wurde von {member.mention} von **entfernt** \n\n**Teammitglied**: {ctx.author.mention}")
             else:
                 await ctx.send(f"{member.mention} hat **keine Verwarnungen**")
         else:
@@ -72,23 +82,53 @@ class Moderation(commands.Cog):
         member_id = str(member.id)
 
         if guild_id in self.data and member_id in self.data[guild_id]:
-            self.data[guild_id][member_id]["Warns"] = 0
+            self.data[guild_id][member_id] = []
             self.save_data()
-            await ctx.send(f"**Alle** Verwarnungen von {member.mention} wurden von {ctx.author.mention} **entfernt**")
+            await ctx.send(f"**Alle** Verwarnungen wurden von {member.mention} **entfernt** \n\n**Teammitglied**: {ctx.author.mention}")
         else:
             await ctx.send(f"{member.mention} hat **keine Verwarnungen**")
 
     @commands.command(aliases=["warns", "warnings"])
-    @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
-    async def findwarn(self, ctx, member: discord.Member):
+    async def findwarn(self, ctx, member: discord.Member = None):
+        if member is None:
+            member = ctx.author
+
         guild_id = str(ctx.guild.id)
         member_id = str(member.id)
 
         if guild_id in self.data and member_id in self.data[guild_id]:
-            warns = self.data[guild_id][member_id].get("Warns", 0)
-            await ctx.send(f"{member.mention} hat {warns} Warn/s")
+            warnings = self.data[guild_id][member_id]
+
+            if warnings:
+                warn_messages = []
+
+                for warn in warnings:
+                    timestamp = warn["timestamp"]
+                    reason = warn["reason"]
+                    moderator_name = warn["moderator"]
+
+                    # Versuch, den Moderator anhand des gespeicherten Namens zu finden
+                    moderator = None
+                    try:
+                        # Versuche, den Moderator anhand des gespeicherten Namen und Discriminator zu finden
+                        moderator_name_split = moderator_name.split('#')
+                        if len(moderator_name_split) == 2:
+                            name, discrim = moderator_name_split
+                            moderator = discord.utils.get(ctx.guild.members, name=name, discriminator=discrim)
+                    except Exception as e:
+                        print(f"Fehler beim Finden des Moderators: {e}")
+
+                    # Fallback auf den Namen als Text, wenn der Moderator nicht gefunden wird
+                    moderator_mention = moderator.mention if moderator else moderator_name
+
+                    warn_messages.append(f"Am {timestamp}, **Grund**: {reason}, **Teammitglied**: {moderator_mention}")
+
+                warn_message_str = "\n".join(warn_messages)
+                await ctx.send(f"**Verwarnungen von {member.mention}:**\n\n{warn_message_str}")
+            else:
+                await ctx.send(f"**Verwarnungen von {member.mention}:**\n\n_Dieser User hat keine Verwarnungen._")
         else:
-            await ctx.send(f"{member.mention} hat **keine Verwarnungen**")
+            await ctx.send(f"**Verwarnungen von {member.mention}:**\n\n_Dieser User hat keine Verwarnungen._")
 
     @commands.command()
     @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
@@ -102,7 +142,7 @@ class Moderation(commands.Cog):
         if reason is None:
             reason = "None"
         await member.ban(reason=reason)
-        await ctx.send(f"**{member.mention}** wurde **gebannt** von **{ctx.message.author.mention}**! **Grund:** {reason}")
+        await ctx.send(f"**{member.mention}** wurde **gebannt** von **{ctx.message.author.mention}**! \n\n**Grund:** {reason}")
 
     @commands.command()
     @commands.has_any_role("|| Head_Moderator", "|| Admin", "|| Verified")
@@ -110,57 +150,60 @@ class Moderation(commands.Cog):
         if reason is None:
             reason = "None"
         await member.kick(reason=reason)
-        await ctx.send(f"**{member.mention}** wurde **gekickt** von **{ctx.message.author.mention}**! **Grund:** {reason}")
+        await ctx.send(f"**{member.mention}** wurde **gekickt** von **{ctx.message.author.mention}**! \n\n**Grund:** {reason}")
 
     @commands.command()
     @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
     async def mute(self, ctx, member: discord.Member, timelimit):
-        if "s" in timelimit:
-            gettime = timelimit.strip("s")
-            if int(gettime) > 2419000:
-                await ctx.send("Du kannst einen User **max. 28 Tage muten**!")
+        try:
+            # Ermitteln der Zeiteinheit und des Zeitwerts
+            if timelimit.endswith("s"):
+                time_unit = "seconds"
+                time_value = int(timelimit[:-1])
+            elif timelimit.endswith("m"):
+                time_unit = "minutes"
+                time_value = int(timelimit[:-1])
+            elif timelimit.endswith("h"):
+                time_unit = "hours"
+                time_value = int(timelimit[:-1])
+            elif timelimit.endswith("d"):
+                time_unit = "days"
+                time_value = int(timelimit[:-1])
+            elif timelimit.endswith("w"):
+                time_unit = "weeks"
+                time_value = int(timelimit[:-1])
             else:
-                newtime = datetime.timedelta(seconds=int(gettime))
-                await member.edit(timed_out_until=discord.utils.utcnow() + newtime)
-                await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}** für **{newtime}**!")
-        if "m" in timelimit:
-            gettime = timelimit.strip("m")
-            if int(gettime) > 40320:
+                await ctx.reply("Bitte eine gültige Zeiteinheit angeben (s, m, h, d, w).")
+                return
+
+            # Überprüfung der maximalen Zeit
+            max_times = {
+                "seconds": 2419200,  # 28 Tage in Sekunden
+                "minutes": 40320,    # 28 Tage in Minuten
+                "hours": 672,        # 28 Tage in Stunden
+                "days": 28,          # 28 Tage
+                "weeks": 4           # 4 Wochen
+            }
+
+            if time_value > max_times[time_unit]:
                 await ctx.send("Du kannst einen User **max. 28 Tage muten**!")
-            else:
-                newtime = datetime.timedelta(minutes=int(gettime))
-                await member.edit(timed_out_until=discord.utils.utcnow() + newtime)
-                await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}** für **{newtime}**!")
-        if "h" in timelimit:
-            gettime = timelimit.strip("h")
-            if int(gettime) > 672:
-                await ctx.send("Du kannst einen User **max. 28 Tage muten**!")
-            else:
-                newtime = datetime.timedelta(hours=int(gettime))
-                await member.edit(timed_out_until=discord.utils.utcnow() + newtime)
-                await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}** für **{newtime}**!")
-        if "d" in timelimit:
-            gettime = timelimit.strip("d")
-            if int(gettime) > 28:
-                await ctx.send("Du kannst einen User **max. 28 Tage muten**!")
-            else:
-                newtime = datetime.timedelta(days=int(gettime))
-                await member.edit(timed_out_until=discord.utils.utcnow() + newtime)
-                await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}** für **{newtime}**!")
-        if "w" in timelimit:
-            gettime = timelimit.strip("w")
-            if int(gettime) > 4:
-                await ctx.send("Du kannst einen User **max. 28 Tage muten**!")
-            else:
-                newtime = datetime.timedelta(weeks=int(gettime))
-                await member.edit(timed_out_until=discord.utils.utcnow() + newtime)
-                await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}** für **{newtime}**!")
+                return
+
+            # Berechnung der Zeitspanne
+            time_delta = datetime.timedelta(**{time_unit: time_value})
+
+            # Mute den Benutzer für die berechnete Zeitspanne
+            await member.edit(timed_out_until=discord.utils.utcnow() + time_delta)
+            await ctx.send(f"**{member.mention}** wurde **gemutet** von **{ctx.message.author.mention}**! \n\n**Zeit**: {time_value} {time_unit}")
+
+        except Exception as e:
+            await ctx.send(f"Es gab einen Fehler beim Muten des Users: {str(e)}")
 
     @commands.command()
     @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
     async def unmute(self, ctx, member: discord.Member):
         await member.edit(timed_out_until=None)
-        await ctx.send(f"**{member.mention}** wurde **unmutet** von **{ctx.message.author.mention}**!")
+        await ctx.send(f"**{member.mention}** wurde **unmutet**! \n\n**Teammitglied**: {ctx.message.author.mention}")
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))

@@ -89,7 +89,12 @@ class LevelSys(commands.Cog):
                                 member = guild.get_member(int(user_id))
                                 if member:
                                     await member.add_roles(role)
-                                    await member.send(f"Herzlichen Glückwunsch! Du hast Level {user_data['level']} erreicht und die Rolle '{role_name}' erhalten.")
+                                    # Send a DM to the user, but no ping
+                                    try:
+                                        await member.send(f"Herzlichen Glückwunsch! Du hast Level {user_data['level']} erreicht und die Rolle '{role_name}' erhalten.")
+                                    except discord.Forbidden:
+                                        pass  # Handle the case where DM fails
+
             await self.save_data(data)
 
     @tasks.loop(seconds=30)
@@ -114,7 +119,7 @@ class LevelSys(commands.Cog):
 
                     user_data = data[str(guild.id)][user_id]
                     current_time = int(time.time())
-                    user_data["xp"] += 7  # 7 XP alle 30 Sekunden
+                    user_data["xp"] += 2  # 2 XP alle 30 Sekunden
 
                     current_level = user_data["level"]
                     current_xp = user_data["xp"]
@@ -135,7 +140,12 @@ class LevelSys(commands.Cog):
                                 role = discord.utils.get(guild.roles, name=role_name)
                                 if role:
                                     await member.add_roles(role)
-                                    await member.send(f"Herzlichen Glückwunsch! Du hast Level {user_data['level']} erreicht und die Rolle '{role_name}' erhalten.")
+                                    # Send a DM to the user, but no ping
+                                    try:
+                                        await member.send(f"Herzlichen Glückwunsch! Du hast Level {user_data['level']} erreicht und die Rolle '{role_name}' erhalten.")
+                                    except discord.Forbidden:
+                                        pass  # Handle the case where DM fails
+
             await self.save_data(data)
 
     @commands.command(aliases=["rank"])
@@ -155,7 +165,7 @@ class LevelSys(commands.Cog):
             data = {}
 
         if guild_id not in data or user_id not in data[guild_id]:
-            await ctx.send(f"{member.mention} hat noch kein Level erreicht.")
+            await ctx.send(f"`@{member.name}#{member.discriminator}` hat noch kein Level erreicht.")
             return
 
         user_data = data[guild_id][user_id]
@@ -173,7 +183,10 @@ class LevelSys(commands.Cog):
         if rank > 1:
             xp_for_next_rank = all_xps[rank - 2] - total_xp
 
-        await ctx.send(f"{member.mention} ist aktuell **Level {level}** ({xp} XP) und damit auf **Rang {rank}**. \nBis zum **nächsten Level** braucht {member.mention} noch {next_level_xp} XP. \nBis zum **nächsten Rang** braucht {member.mention} noch {xp_for_next_rank} XP.")
+        if rank > 1:
+            await ctx.send(f"{member.mention} ist aktuell **Level {level}** ({xp} XP) und damit auf **Rang {rank}**. \nBis zum **nächsten Level** braucht {member.mention} noch {next_level_xp} XP. \nBis zum **nächsten Rang** braucht {member.mention} noch {xp_for_next_rank} XP.")
+        elif rank == 1:
+            await ctx.send(f"{member.mention} ist aktuell **Level {level}** ({xp} XP) und damit auf **Rang {rank}**. \nBis zum **nächsten Level** braucht {member.mention} noch {next_level_xp} XP.")
 
     @commands.command(aliases=["lb"])
     async def leaderboard(self, ctx):
