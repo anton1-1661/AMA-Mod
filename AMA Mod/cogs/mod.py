@@ -111,17 +111,15 @@ class Moderation(commands.Cog):
                     moderator = None
                     try:
                         # Versuche, den Moderator anhand des gespeicherten Namen und Discriminator zu finden
-                        moderator_name_split = moderator_name.split('#')
-                        if len(moderator_name_split) == 2:
-                            name, discrim = moderator_name_split
-                            moderator = discord.utils.get(ctx.guild.members, name=name, discriminator=discrim)
+                        name = warn["moderator"]
+                        moderator = discord.utils.get(ctx.guild.members, name=name)
                     except Exception as e:
                         print(f"Fehler beim Finden des Moderators: {e}")
 
                     # Fallback auf den Namen als Text, wenn der Moderator nicht gefunden wird
                     moderator_mention = moderator.mention if moderator else moderator_name
 
-                    warn_messages.append(f"Am {timestamp}, **Grund**: {reason}, **Teammitglied**: {moderator_mention}")
+                    warn_messages.append(f"**-** Am {timestamp}, **Grund**: {reason}, **Teammitglied**: {moderator_mention}")
 
                 warn_message_str = "\n".join(warn_messages)
                 await ctx.send(f"**Verwarnungen von {member.mention}:**\n\n{warn_message_str}")

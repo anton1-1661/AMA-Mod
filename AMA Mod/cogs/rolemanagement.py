@@ -10,8 +10,11 @@ class RoleManagement(commands.Cog):
         print("Roles are ready!")
 
     @commands.Cog.listener()
-    async def on_member_join(self, ctx, member: discord.Member):
-        await member.add_roles("Mitglied")
+    async def on_member_join(self, member):
+        role = discord.utils.get(member.guild.roles, name="Mitglied")
+        await member.add_roles(role)
+        print(f"{member.name} hat die rolle Mitglied bekommen!")
+
 
     @commands.command()
     @commands.has_any_role("|| Moderator", "|| Headmoderator", "|| Admin")
