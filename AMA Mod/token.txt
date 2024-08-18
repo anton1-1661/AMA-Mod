@@ -1,1 +1,1 @@
-Your Bot Token
+Your discord Bot Token
