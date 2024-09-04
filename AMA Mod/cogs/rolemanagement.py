@@ -13,26 +13,23 @@ class RoleManagement(commands.Cog):
     async def on_member_join(self, member):
         role = discord.utils.get(member.guild.roles, name="Mitglied")
         await member.add_roles(role)
-        print(f"{member.name} hat die rolle Mitglied bekommen!")
 
+    @commands.command(name="role")
+    @commands.has_any_role("|| Moderator", "|| Head-Moderator", "|| Admin")
+    async def role(self, ctx, action: str, member: discord.Member, role: discord.Role):
+        if action == "add":
+            if role in member.roles:
+                await ctx.send(f"Diese Rolle hat {member.mention} bereits!")
+            else:
+                await member.add_roles(role)
+                await ctx.send(f"Die Rolle {role.mention} wurde zu {member.mention} hinzugefügt! \n\n**Teammitglied**:{ctx.author.mention}")
 
-    @commands.command()
-    @commands.has_any_role("|| Moderator", "|| Headmoderator", "|| Admin")
-    async def addrole(self, ctx, member: discord.Member, role: discord.Role):
-        if role in member.roles:
-            await ctx.send(f"Diese Rolle hat {member.mention} bereits!")
-        else:
-            await member.add_roles(role)
-            await ctx.send(f"Die Rolle {role.mention} wurde zu {member.mention} hinzugefügt! \n\n**Teammitglied**:{ctx.author.mention}")
-
-    @commands.command(aliases=["removerole"])
-    @commands.has_any_role("|| Moderator", "|| Headmoderator", "|| Admin")
-    async def remrole(self, ctx, member: discord.Member, role: discord.Role):
-        if role not in member.roles:
-            await ctx.send(f"Diese Rolle hat {member.mention} nicht!")
-        else:
-            await member.remove_roles(role)
-            await ctx.send(f"Die Rolle {role.mention} wurde vom Benutzer {member.mention} entfernt! \n\n**Teammitglied**:{ctx.author.mention}")
+        if action == "remove":
+            if role not in member.roles:
+                await ctx.send(f"Diese Rolle hat {member.mention} nicht!")
+            else:
+                await member.remove_roles(role)
+                await ctx.send(f"Die Rolle {role.mention} wurde vom Benutzer {member.mention} entfernt! \n\n**Teammitglied**:{ctx.author.mention}")
 
 async def setup(bot):
     await bot.add_cog(RoleManagement(bot))

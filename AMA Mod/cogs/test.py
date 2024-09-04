@@ -11,10 +11,7 @@ class Test(commands.Cog):
 
     @commands.command()
     async def ping(self, ctx):
-        ping_embed = discord.Embed(title="Ping", description="Latency ms", color=discord.Color.blue())
-        ping_embed.add_field(name=f"{self.bot.user.name}`s Latancy (ms): ", value=f"{round(self.bot.latency * 1000)}ms.", inline=False)
-        ping_embed.set_footer(text=f"Angefragt von {ctx.author.name}.", icon_url=ctx.author.avatar)
-        await ctx.send(embed=ping_embed)
+        await ctx.send("Pong!")
 
 async def setup(bot):
     await bot.add_cog(Test(bot))
