@@ -17,19 +17,15 @@ class VCControl(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # Prüfen, ob ein Benutzer dem Basis-Channel beigetreten ist
         if after.channel and after.channel.id == self.base_channel_id:
-            # Erstelle einen neuen Voice-Channel in derselben Kategorie
             category = after.channel.category
             new_channel = await category.create_voice_channel(name=f"{member.display_name}'s Channel")
             await member.move_to(new_channel)
             self.user_channels[member.id] = new_channel.id
 
-            # Setze Berechtigungen für den neuen Channel
             await new_channel.set_permissions(member, view_channel=True, connect=True, speak=True)
             await new_channel.set_permissions(member.guild.default_role, view_channel=True, connect=True, speak=True)
 
-        # Kanal löschen, wenn er leer ist
         if before.channel and before.channel.id in self.user_channels.values() and len(before.channel.members) == 0:
             await asyncio.sleep(20)
             if len(before.channel.members) == 0:
@@ -45,7 +41,6 @@ class VCControl(commands.Cog):
 
         channel = ctx.guild.get_channel(self.user_channels[member.id])
 
-        # Überprüfen, ob keine Aktion angegeben wurde
         if not action:
             await ctx.send(
                 "Command List `VC`\n"
@@ -57,7 +52,6 @@ class VCControl(commands.Cog):
             )
             return
 
-        # Verarbeiten der angegebenen Aktion
         if action == "limit":
             if value == "off":
                 await channel.edit(user_limit=0)
@@ -115,7 +109,7 @@ class VCControl(commands.Cog):
                 return
 
             if member_to_kick.voice.channel == channel:
-                await member_to_kick.move_to(None)  # Entfernt den Benutzer aus dem Sprachkanal
+                await member_to_kick.move_to(None)
                 await ctx.send(f"**{member_to_kick.display_name}** wurde aus **{channel.name} gekickt**.")
             else:
                 await ctx.send(f"**{member_to_kick.display_name}** ist **nicht** in deinem **Sprachkanal**.")
@@ -133,7 +127,6 @@ class VCControl(commands.Cog):
             await ctx.send(f"Kategorie **{category.name}** ist jetzt **geschlossen**.")
 
         elif action == "open" and (target is None or target == "category"):
-            # Alle relevanten Berechtigungen für @everyone aktivieren, einschließlich Sprachaktivierung
             await category.set_permissions(
                 everyone_role, 
                 view_channel=True, 
@@ -157,13 +150,11 @@ class VCControl(commands.Cog):
                     await ctx.send("Ungültiger Wert für das Benutzerlimit. Bitte gib eine gültige Zahl an.")
         
         elif action == "vc" and target == "close":
-            # "Verbinden" deaktivieren, während "Kanal anzeigen", "Sprechen", "Nachrichten senden" und "Reaktionen hinzufügen" aktiv bleiben.
-            await voice_channel.set_permissions(everyone_role, connect=False, view_channel=True, send_messages=True, add_reactions=True, speak=True)
+            await voice_channel.set_permissions(everyone_role, connect=False)
             await ctx.send(f"**Verbinden** für den Voice-Channel **{voice_channel.name}** wurde **deaktiviert**.")
 
         elif action == "vc" and target == "open":
-            # "Verbinden" aktivieren, während "Kanal anzeigen", "Sprechen", "Nachrichten senden" und "Reaktionen hinzufügen" aktiv bleiben.
-            await voice_channel.set_permissions(everyone_role, connect=True, view_channel=True, send_messages=True, add_reactions=True, speak=True)
+            await voice_channel.set_permissions(everyone_role, connect=True)
             await ctx.send(f"**Verbinden** für den Voice-Channel **{voice_channel.name}** wurde **aktiviert**.")
 
         elif action == "add":
@@ -177,8 +168,10 @@ class VCControl(commands.Cog):
                 await ctx.send("Benutzer nicht gefunden.")
                 return
 
-            # Berechtigungen für den Benutzer in der Kategorie aktivieren, einschließlich Sprachaktivierung
+            # Berechtigungen für den Benutzer in der Kategorie aktivieren
             await category.set_permissions(member, view_channel=True, speak=True, connect=True)
+            # Synchronisieren der Berechtigungen
+            await voice_channel.edit(sync_permissions=True)
             await ctx.send(f"Berechtigungen für **{member.display_name}** in der Kategorie **{category.name}** wurden **aktiviert**.")
 
         elif action == "remove":
@@ -193,13 +186,15 @@ class VCControl(commands.Cog):
                 return
 
             # Berechtigungen für den Benutzer auf die von @everyone zurücksetzen
-            await category.set_permissions(member, overwrite=None)  # Entfernt alle spezifischen Berechtigungen des Benutzers
+            await category.set_permissions(member, overwrite=None)
+            # Synchronisieren der Berechtigungen
+            await voice_channel.edit(sync_permissions=True)
             await ctx.send(f"Berechtigungen für **{member.display_name}** in der Kategorie **{category.name}** wurden **entfernt**.")
 
         else:
             await ctx.send(
-                "Ungültiger Befehl.s\n"
-                "Verwende `.event open/close`\n"
+                "Ungültiger Befehl. **Verwende:**\n"
+                "`.event open/close`\n"
                 "`.event vc limit off/2`\n"
                 "`.event vc close/open`\n"
                 "`.event add/remove @user`."
