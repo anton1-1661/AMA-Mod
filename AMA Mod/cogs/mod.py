@@ -26,6 +26,10 @@ class Moderation(commands.Cog):
         print("Moderation is ready!")
 
     @commands.command()
+    async def ping(self, ctx):
+        await ctx.send("Pong!")
+
+    @commands.command()
     @commands.has_any_role("|| Moderator", "|| Head_Moderator", "|| Admin", "|| Verified")
     async def warn(self, ctx, member: discord.Member, *, reason=None):
         if reason is None:
