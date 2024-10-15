@@ -42,7 +42,7 @@ async def on_message(message):
             await message.delete()
             await message.channel.send(f"{message.author.mention}, bitte poste keine Links.")
 
-    if message.channel.id == 1254318550336929802 or message.channel.id == 1002266257103540290:
+    if message.channel.id == 1234567890123456789 or message.channel.id == 1234567890123456789: # Channel id durch Vorschläge Channel ersetzen
         green_check = discord.utils.get(message.guild.emojis, name='check')
         red_cross = discord.utils.get(message.guild.emojis, name='cross')
         thread = await message.channel.create_thread(
