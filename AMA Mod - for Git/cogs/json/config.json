@@ -1,0 +1,9 @@
+{
+    "twitch_client_id": "", 
+    "twitch_client_secret": "",
+    "no_permission_message": "Diesen Befehl kann nur ein **Teammitglied** oder **Admin** ausführen!!",
+    "ruletext": "Bitte lest euch die Regeln in <#1234567890123456789> durch! \nViel Spaß :)",
+    "twicon_url": "",
+    "token": "",
+    "chatgpt_api_key": ""
+}
