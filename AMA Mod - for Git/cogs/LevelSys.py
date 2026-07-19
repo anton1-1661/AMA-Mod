@@ -6,20 +6,20 @@ import time
 class LevelSys(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.allowed_channel_ids = [1234567890123456789, 1234567890123456789, 1234567890123456789] # Channels einfügen wo commands gesedet werden dürfen
+        self.allowed_channel_ids = [] # Channel IDs worein man Commands ausführen darf 
         self.voice_activity.start()
 
-        self.level_roles = {  # Ersetze die Namen durch deine Discord Rollennamen 
-            5: "Neuling",
-            10: "Reisender",
-            15: "Aktiv",
-            20: "Abenteurer",
-            25: "Entdecker",
-            30: "SEHR Aktiv",
-            35: "Erforscher",
-            40: "AMA.exe",
-            45: "König",
-            50: "Ein wahrer Enton",
+        self.level_roles = { # Zahlen mit Namen der Rollen ersetzen die bei dem jeweiligen Level vergeben werden sollen
+            5: "1",
+            10: "2",
+            15: "3",
+            20: "4",
+            24: "5",
+            28: "6",
+            32: "7",
+            36: "8",
+            40: "9",
+            44: "10",
         }
 
     def get_xp_for_level(self, level):
@@ -50,23 +50,22 @@ class LevelSys(commands.Cog):
         guild = member.guild
         role_name = self.level_roles.get(level)
 
-        if role_name:    
+        if role_name:
             role = discord.utils.get(guild.roles, name=role_name)
             if role:
                 await member.add_roles(role)
                 try:
-                    await member.send(f"Herzlichen Glückwunsch! Du hast Level {level} erreicht und die Rolle '{role_name}' erhalten.")  # Sendet eine Dm an den User
+                    await member.send(f"Herzlichen Glückwunsch! Du hast **Level {level}** erreicht und die Rolle `{role_name}` erhalten.")
                 except discord.Forbidden:
                     pass  # Handle the case where DM fails
 
-        # Extra Kategorierolle für Levelrollen
+        # Zusätzliche Rolle bei Level 5 ohne DM
         if level == 5:
-            extra_role = guild.get_role(1234567890123456789)  # Kategorierollen-ID hier einfügen
+            extra_role = guild.get_role(1279075826390007849)  # Hier wird die ID der Rolle eingefügt
             if extra_role and extra_role not in member.roles:
                 await member.add_roles(extra_role)
-                # Keine DM an den User senden
-
-    @commands.Cog.listener()   # Level für Nachrichten
+    
+    @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.id == self.bot.user.id or message.author.bot:
             return
@@ -91,15 +90,18 @@ class LevelSys(commands.Cog):
         user_data = data[guild_id][user_id]
         current_time = int(time.time())
         last_xp_time = user_data.get("last_xp_time", 0)
-        
+
         if current_time - last_xp_time >= 30:
             # Standard XP
             xp_gain = 3
 
             # Überprüfen, ob der Benutzer die Rolle mit der ID 1255739564228612198 hat
-            bonus_role = message.guild.get_role(1234567890123456789) # Boosterrollen-ID hier einfügen
+            bonus_role = message.guild.get_role(1255739564228612198)
             if bonus_role in message.author.roles:
                 xp_gain *= 1.2  # 20% mehr XP
+
+        # Runde XP auf eine Ganzzahl
+            xp_gain = round(xp_gain)
 
             user_data["xp"] += xp_gain
             user_data["last_xp_time"] = current_time
@@ -127,7 +129,7 @@ class LevelSys(commands.Cog):
             user_data["total_xp"] = self.get_total_xp_for_level(user_data["level"]) + user_data["xp"]
             await self.save_data(data)
 
-    @tasks.loop(seconds=30)   # Voiceleveling
+    @tasks.loop(seconds=30)
     async def voice_activity(self):
         for guild in self.bot.guilds:
             try:
@@ -146,26 +148,25 @@ class LevelSys(commands.Cog):
             for member in guild.members:
                 user_id = str(member.id)
 
-                # Initialisiere die Benutzerdaten, wenn sie noch nicht existieren
                 if user_id not in data[str(guild.id)]:
                     data[str(guild.id)][user_id] = {"level": 0, "xp": 0, "total_xp": 0, "last_xp_time": 0}
 
                 user_data = data[str(guild.id)][user_id]
 
-                # Überprüfen, ob der User in einem Voicechannel ist
                 if member.voice and member.voice.channel:
-                    # Prüfen, ob mindestens 2 Personen im Channel sind
                     if len(member.voice.channel.members) >= 2:
-                        # Prüfen, ob der User sich nicht selbst gemutet hat
                         if not member.voice.self_mute:
                             xp_gain = 5
 
-                            # Überprüfen, ob der Benutzer die Rolle Booster hat
-                            bonus_role = guild.get_role(1234567890123456789) # Hier ebenfals Booster-ID einfügen
+                            # Überprüfen, ob der Benutzer die Booster-Rolle hat
+                            bonus_role = guild.get_role() # Eine Rolle wie z.b. ein Platzhalterrolle die bei lvl 5 vergeben wird, kann hier die ID der Rolle eingefügt werden
                             if bonus_role in member.roles:
                                 xp_gain *= 1.2  # 20% mehr XP
 
-                            user_data["xp"] += xp_gain  # XP alle 30 Sekunden (mit Bonus, falls zutreffend)
+                            # Runde XP auf eine Ganzzahl
+                            xp_gain = round(xp_gain)
+
+                            user_data["xp"] += xp_gain
                             user_data["last_xp_time"] = current_time
 
                             current_level = user_data["level"]
@@ -184,13 +185,11 @@ class LevelSys(commands.Cog):
 
                                     await self.assign_roles(member, user_data["level"])
 
-                # Aktualisiere total_xp
                 user_data["total_xp"] = self.get_total_xp_for_level(user_data["level"]) + user_data["xp"]
 
             await self.save_data(data)
 
-
-    @commands.command(aliases=["rank"])   # Levelcommand
+    @commands.command(aliases=["rank"])
     async def level(self, ctx, member: discord.Member = None):
         # Überprüfen, ob der Befehl in einem der erlaubten Channels verwendet wird
         if ctx.channel.id not in self.allowed_channel_ids:
@@ -235,7 +234,7 @@ class LevelSys(commands.Cog):
         else:
             await ctx.send(f"{member.mention} ist aktuell **Level {level}** ({total_xp} XP) und damit auf **Rang {rank}**. \nBis zum **nächsten Level** braucht {member.mention} noch {next_level_xp} XP.")
 
-    @commands.command(aliases=["lb"])   # Leaderboard command
+    @commands.command(aliases=["lb"])
     async def leaderboard(self, ctx):
         # Überprüfen, ob der Befehl in einem der erlaubten Channels verwendet wird
         if ctx.channel.id not in self.allowed_channel_ids:

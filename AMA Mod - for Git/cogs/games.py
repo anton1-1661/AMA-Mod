@@ -9,10 +9,12 @@ import os
 class Games(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.reddit = praw.Reddit(client_id="---" """Deine Client-id""", client_secret="---" """Dein Client-Secret""", user_agent="script:randommeme:v1.0 (by u/Anton1661)")
-        self.channel_id = 1234567890123456789  # Deine Zähl-Kanal
+        self.reddit = praw.Reddit(client_id="", client_secret="", user_agent="")
+        self.channel_id = 123456789  # Deine Zählchannel-ID
         self.data_file = "cogs\json\counting_data.json"
-        self.allowed_channel_ids = [1234567890123456789, 1234567890123456789] # Deine Kanäle in dem man Commands senden darf
+        self.current_number = 1
+        self.last_user_id = None
+        self.allowed_channel_ids = [1253032508082229340, 1002302289626804244]
 
         # Lade die gespeicherten Daten, wenn die Datei existiert
         self.load_data()
@@ -42,7 +44,7 @@ class Games(commands.Cog):
     async def meme(self, ctx: commands.Context):
         # Überprüfen, ob der Befehl in einem der erlaubten Channels verwendet wird
         if ctx.channel.id not in self.allowed_channel_ids:
-            await ctx.send(f"{ctx.author.mention} bitte führe diesem Befehl nur in <#1234567890123456789> aus") # Bitte ersetze die Nummer durch dein memes Kanal
+            await ctx.send(f"{ctx.author.mention} bitte führe diesem Befehl nur in <#1253032508082229340> aus.", delete_after=10)
             return
 
         subreddit = await self.reddit.subreddit("memes")
@@ -68,7 +70,7 @@ class Games(commands.Cog):
     def cog_unload(self):
         self.bot.loop.create_task(self.reddit.close())
 
-    @commands.command(aliases=["chatgpt"]) 
+    @commands.command(aliases=["chatgpt"])
     @commands.has_permissions(administrator=True)
     async def gpt(self, ctx: commands.Context, *, prompt: str):
         async with aiohttp.ClientSession() as session:
@@ -83,7 +85,7 @@ class Games(commands.Cog):
             }
             with open("cogs/json/config.json", "r") as f:
                 config = json.load(f)
-                api_key = config["chatgpt_api_key"]
+                api_key = config["api_key"]
 
             headers = {"Authorization": f"Bearer {api_key}"}
             try:
@@ -99,15 +101,15 @@ class Games(commands.Cog):
             except Exception as e:
                 await ctx.reply(f"Es gab einen Fehler bei der Anfrage: {str(e)}")
 
-    @commands.Cog.listener() # Das Zählsystem
+    @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot:  
+        if message.author.bot:
             return
 
         if message.channel.id != self.channel_id:
             return
 
-        # Zähl Channel holen
+        # Hier holen wir uns den Channel
         channel = self.bot.get_channel(self.channel_id)
 
         try:

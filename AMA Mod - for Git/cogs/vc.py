@@ -5,12 +5,14 @@ import asyncio
 class VCControl(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.category_id = 1234567890123456789
-        self.base_channel_id = 1234567890123456789  # Der Channel, in den User joinen, um einen eigenen VC zu bekommen
-        self.move_channel_id = 1234567890123456789  # Der Channel, aus dem User in den neuen VC verschoben werden können (.vc move @user)
+        self.category_id = 123456789 # Die Event Kategorie die dort gesperrt werden kann 
+        self.base_channel_id = 123456789  # Der Channel, in den User joinen, um einen eigenen VC zu bekommen
+        self.move_channel_id = 123456789  # Der Channel, aus dem User in den neuen VC verschoben werden können
         self.user_channels = {}  # Speichert User und ihre erstellten Channel
-        self.voice_channel_id = 1234567890123456789  # Der spezifische Voice-Channel, den du im event-Befehl verwenden möchtest
-        self.allowed_channel_ids = [1234567890123456789, 1234567890123456789] # Channels in dem man den Command ausführen kann
+        self.voice_channel_id = 123456789  # Der Event voice channel, der von Admins verwaltet werden kann
+        self.allowed_channel_ids = [] # Worin Commands ausgeführt werden können
+        self.user_channels = {}  # Speichert User und ihre erstellten Channel
+        self.channel_owners = {}  # channel_id -> owner_id, für zuverlässiges Aufräumen (überschreibt nie)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -29,12 +31,19 @@ class VCControl(commands.Cog):
             # Verschiebe den Benutzer in den neuen Channel
             await member.move_to(new_channel)
             self.user_channels[member.id] = new_channel.id
+            self.channel_owners[new_channel.id] = member.id
 
-        if before.channel and before.channel.id in self.user_channels.values() and len(before.channel.members) == 0:
+        if before.channel and before.channel.id in self.channel_owners and len(before.channel.members) == 0:
             await asyncio.sleep(20)
             if len(before.channel.members) == 0:
+                owner_id = self.channel_owners.get(before.channel.id)
                 await before.channel.delete()
-                del self.user_channels[before.channel.id]
+                del self.channel_owners[before.channel.id]
+                # Nur löschen, wenn user_channels[owner] noch auf GENAU diesen Channel zeigt -
+                # sonst würde man versehentlich den Verweis auf einen inzwischen neu erstellten
+                # Channel desselben Users entfernen.
+                if owner_id is not None and self.user_channels.get(owner_id) == before.channel.id:
+                    del self.user_channels[owner_id]
 
     @commands.command(name='vc')
     async def vc_command(self, ctx, action: str = '', value: str = None):
